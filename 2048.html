@@ -1,0 +1,285 @@
+﻿<!doctype html>
+<html>
+    <head>
+        <title>2048</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
+        <style type="text/css">
+            body {
+                max-width: 470px;
+                width: 90%;
+                margin: 3% auto;
+                background: #fff;
+                color: #776e65;
+                font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+            }
+            #box {
+                margin-top: 5%;
+                position: relative;
+                padding: 3%;
+                cursor: default;
+                -webkit-touch-callout: none;
+                -ms-touch-callout: none;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -ms-touch-action: none;
+                touch-action: none;
+                background: #bbada0;
+                border-radius: 6px;
+                width: 100%;
+                height: 100%;
+                -webkit-box-sizing: border-box;
+                -moz-box-sizing: border-box;
+                box-sizing: border-box;
+            }
+            .above{
+                display: flow-root;
+                width: 100%;
+            }
+            #grid,#tile{
+                position: absolute;
+                width: 94%;
+                height: 94%;
+                top: 0;
+                margin-top: 3%;
+            }
+            #grid {
+                z-index: 1;
+            }
+            #grid span,#tile span {
+                width: 23%;
+                height: 23%;
+                margin: 1%;
+                float: left;
+                border-radius: 3px;
+                background: rgba(238,228,218,.35);
+            }
+            #tile span {
+                border-radius: 3px;
+                background: #eee4da;
+                font-weight: bold;
+                z-index: 10;
+                font-size: 3.5rem;
+                align-items: center;
+                display: flex;
+                justify-content: center;
+                position: absolute;
+                -webkit-transition: 100ms ease-in-out;
+                -moz-transition: 100ms ease-in-out;
+                transition: 100ms ease-in-out;
+                -webkit-transition-property: -webkit-transform;
+                -moz-transition-property: -moz-transform;
+                transition-property: transform;
+            }
+            #tile {
+                z-index: 2;
+            }
+            .icon {
+                color: #776e65;
+                font-size: 5em;
+                font-weight: bold;
+                margin: 0;
+                display: block;
+                float: left;
+                position: absolute;
+            }
+            #info {
+                color: #cfc;
+                text-align: right;
+                display: table;
+                float: right;
+                width: 70px;
+            }
+            #info>span {
+                position: relative;
+                display: inline-block;
+                background: #bbada0;
+                padding: 15px 25px;
+                font-size: 25px;
+                height: 25px;
+                line-height: 47px;
+                font-weight: bold;
+                border-radius: 3px;
+                color: white;
+                margin-top: 15px;
+                text-align: center;
+                margin: 5%;
+            }
+            #info span:after {
+                position: absolute;
+                width: 100%;
+                top: 10px;
+                left: 0;
+                text-transform: uppercase;
+                font-size: 13px;
+                line-height: 13px;
+                text-align: center;
+                color: #eee4da;
+            }
+            #score:after {
+                content: "score";
+            }
+            #best:after {
+                content: "best";
+            }
+            .above:after {
+                content: "";
+                display: block;
+                clear: both;
+            }
+            .above p {
+                float: left;
+                line-height: 42px;
+                margin: 0;
+            }
+            .above a {
+                display: inline-block;
+                background: #8f7a66;
+                border-radius: 3px;
+                padding: 0 20px;
+                text-decoration: none;
+                color: #f9f6f2;
+                height: 40px;
+                line-height: 42px;
+                display: block;
+                text-align: center;
+                float: right;
+                font-weight: bold;
+                cursor: pointer;
+            }
+            #box img {
+                width: 100%;
+                height: auto;
+            }
+            @keyframes dropdown{
+                0% { width:23% ;height: 23%;}
+                50% { width:24.5% ;height: 24.5%;margin-left: -4%;margin-top: -5%}
+                100% { width:23% ;height: 23%;}
+            }
+
+        </style>
+    </head>
+    <body>
+        <div style="display: flow-root;height: 125px;">        
+            <div class="icon">2048</div>
+            <div id="info">
+                <span id="score">0</span>
+                <span id="best">0</span>
+            </div>
+        </div>
+        <div class="above">
+            <p>合并相同方块，得到<strong>2048</strong>的方块!</p>
+            <a onclick="G.start()">新游戏</a>
+        </div>
+        <div id="box">
+            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+            <div id="grid"></div>
+            <div id="tile"></div>
+        </div>
+    </body>
+    <script type="text/javascript">
+/***声明***/
+        const G={};// 命名空间
+        G.boxkey = [],// 16格内容盒子   
+        G.score={"s":0},// 得分
+        G.freeSpace = 14,// 空余的格子 
+        G.backColor = ["eee4da", "ede0c8", "f2b179", "f59563", "f67c5f", "f65e3b", "edcf72", "edcc61", "edc850", "edc53f", "edc22e","edc22e","edc22e","edc22e","edc22e","edc22e"],// 格子背景颜色代码
+        G.istime=0,// 生成、移动——冲突监控
+        G.$=(id)=>{return document.getElementById(id);},//dom 封装
+        G.timer = (fun)=>{setTimeout(fun,110);G.istime=1},// 计时器
+        G.edit = async function(val,loca,last){ // 输出DOM ：（数值、位置、要移动的元素）
+            G.boxkey[loca]=val;//记录值
+            var tilecor = val==2? G.backColor[0]:G.backColor[Math.log(val)/Math.log(2)-1];// 背景颜色
+            var fontcor = val>4?";color:#f9f6f2":'';// 文字颜色
+            var fontsize =val>64?val>512?";font-size:1.5rem":";font-size:2rem":''; // 字体大小
+            var style = 'background:#'+tilecor+';transform:translate('+(loca%4)*108.5+'%'+','+ ~~(loca/4)*109+"%"+')'+fontcor+fontsize;
+            last?last.style=style:G.$("tile").innerHTML += '<span id='+loca+' style='+style+'>'+val+'</span>';
+            // 录入 
+        },
+        G.control = function(keycode){ // 移动（key）值：通过改变遍历顺序实现上下左右按键
+            var p=[0,1,2,3],r=[3,2,1,0],move = {"37":[p,p,1,1],"38":[r,p,1,0],"39":[p,r,0,1],"40":[r,r,0,0]},ismove=0,movebox = move[keycode]
+            if(!movebox)return
+            movebox[0].forEach(function(i){
+                var page =movebox[3]?4*i:i, container = [],stackBottom=movebox[1][0];// 底数、判断容器、栈底位置
+                movebox[1].forEach(function(x){
+                    var heap=movebox[3]?page+x:4*x+page,queue=movebox[3]?page+stackBottom:4*stackBottom+page; // 堆、队列
+                    if(G.boxkey[heap]){ // 移动
+                        G.$(heap).style.animation=""
+                        if(stackBottom!=x){
+                            G.edit(G.boxkey[heap],queue,G.$(heap));
+                            G.$(heap).id=queue;
+                            G.boxkey[queue]=G.boxkey[heap];
+                            G.boxkey[heap]='';
+                            ismove=1;
+                        }
+                        container.push(queue);
+                        movebox[2]?stackBottom++:stackBottom--;
+                    }
+                    if(container.length==2){ // 合并
+                        if(G.boxkey[container[0]]==G.boxkey[container[1]]){
+                            G.$(container[0]).remove();// 删除第一个
+                            G.$(container[1]).innerHTML = G.boxkey[container[0]]*2;// 改变第二个的值
+                            G.edit(G.boxkey[container[0]]*2,container[0],G.$(container[1])); // 移动第二个
+                            G.$(container[1]).style.animation="dropdown 0.2s linear"; // 加入动画
+                            G.$(container[1]).id=container[0]; // 把第二个的ID 替换成第一个
+                            G.score.now=G.boxkey[container[0]]+G.score.s; // 改变得分
+                            container=[]; //清空容器
+                            movebox[2]?stackBottom--:stackBottom++
+                            G.boxkey[queue]=''
+                            G.freeSpace++;
+                            ismove=1;
+                        }else
+                        container.shift(); // 判断容器回退一个位置
+                    }
+                })
+            })
+            ismove?G.timer(G.movetile):''; // 判断按键操作是否成功，成功则创建一个新的块
+        },
+        G.movetile = function(){ // 创建格子
+            var locat =  ~~(Math.random() * G.freeSpace);
+            for(var i=0;i<16;i++){ // 筛出剩余格子
+                if(G.boxkey[i]&&i==locat)locat++;
+            }
+            G.edit(~~(Math.random() * 2) * 2 + 2,locat);
+            G.freeSpace--;
+            G.freeSpace==0?G.death():'';
+            G.istime=0;
+        },
+        G.death = function(){ // 死亡判断
+            for(var i=0;i<16;i++){
+                if((G.boxkey[i]==G.boxkey[i-1] && i%4!=0)
+                ||(G.boxkey[i]==G.boxkey[i+1]  && i%4!=3)
+                ||G.boxkey[i]==G.boxkey[i-4]
+                ||G.boxkey[i]==G.boxkey[i+4])
+                return;
+            }
+            G.timer(()=>{
+                alert("over");
+                G.$("best").innerHTML=G.score.s;
+                document.cookie="best="+G.score.s;
+            })
+            
+        },
+        G.start = function() {  //初始化
+            var box = '';
+            for (var i = 0; i < 16; i++) {
+                box += "<span></span>";
+                G.boxkey[i] = '';
+            }
+            G.$("grid").innerHTML = box
+            G.$("tile").innerHTML = ''
+            G.$("score").innerHTML = '0';
+            G.$("best").innerHTML=document.cookie?document.cookie.split(";")[0].split("=")[1]:'0';
+            G.edit(2,0),G.edit(4,1);
+        };
+        document.onkeydown = function(e) {// 按键绑定
+            !G.istime?G.control((e ? e : event).keyCode):'';
+        }
+        Object.defineProperty(G.score,"now",{set:function(newVal){// 得分双向绑定
+            G.score.s = newVal
+　　　　　　 G.$("score").innerHTML = newVal;
+　　　　}});
+/*******初始化*******/
+        G.start()
+    </script>
+</html>

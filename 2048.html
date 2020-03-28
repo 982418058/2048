@@ -187,6 +187,7 @@
         G.istime=0,// 生成、移动——冲突监控
         G.$=(id)=>{return document.getElementById(id);},//dom 封装
         G.timer = (fun)=>{setTimeout(fun,110);G.istime=1},// 计时器
+        G.moveRange = {x:'',y:'',d:''},
         G.edit = async function(val,loca,last){ // 输出DOM ：（数值、位置、要移动的元素）
             G.boxkey[loca]=val;//记录值
             var tilecor = val==2? G.backColor[0]:G.backColor[Math.log(val)/Math.log(2)-1];// 背景颜色
@@ -260,6 +261,23 @@
             })
             
         },
+        G.touchMove = function(e){//触摸判断
+            e.preventDefault();
+            x = G.moveRange.x - e.touches[0].pageX;//滑动的距离 x
+            y = G.moveRange.y - e.touches[0].pageY;//滑动的距离 y
+            if( (G.moveRange.d=="") && Math.abs(x)>3||Math.abs(y)>3)
+            G.moveRange.d = Math.abs(x)>Math.abs(y)?(x>0?"37":"39"):(y>0?"38":"40");
+        },
+        G.touchSatrt = function(e){//触摸 
+            e.preventDefault(); 
+            G.moveRange.x = e.touches[0].pageX;   //刚触摸时的坐标   x              
+            G.moveRange.y = e.touches[0].pageY;   //刚触摸时的坐标   y          
+        },
+        G.touchEnd = function(e){//触摸 
+            e.preventDefault(); 
+            G.control(G.moveRange.d);
+            G.moveRange.d =''
+        },
         G.start = function() {  //初始化
             var box = '';
             for (var i = 0; i < 16; i++) {
@@ -279,6 +297,9 @@
             G.score.s = newVal
 　　　　　　 G.$("score").innerHTML = newVal;
 　　　　}});
+        G.$("box").addEventListener('touchmove',G.touchMove,false); // 滑动事件注册
+        G.$("box").addEventListener('touchstart',G.touchSatrt,false); 
+        G.$("box").addEventListener('touchend', G.touchEnd,false);  
 /*******初始化*******/
         G.start()
     </script>
